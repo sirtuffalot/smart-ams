@@ -285,9 +285,15 @@ const StudentDashboard = () => {
     }
 
     // If strict mode is ON, they must do BOTH (Scan QR + Enter Password)
-    // If strict mode is OFF, scanning the QR is enough to prove attendance (since it rotates every 20s).
-    if (selectedSession.isStrict) {
-      showToast('QR Validated! Please enter the backup password to complete attendance.', 'success');
+    // If location is INVALID, they MUST use the backup password to prove their presence
+    // If strict mode is OFF AND location is VALID, scanning the QR is enough to prove attendance
+    if (selectedSession.isStrict || !locationValid) {
+      showToast(
+        !locationValid 
+          ? 'Location unverified. Please enter the backup password to verify attendance.' 
+          : 'QR Validated! Please enter the backup password to complete attendance.', 
+        !locationValid ? 'warning' : 'success'
+      );
       if (scannerRef.current && scannerRef.current.isScanning) {
         try { scannerRef.current.pause(true); } catch (e) { /* ignore */ }
       }
