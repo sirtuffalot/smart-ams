@@ -167,7 +167,9 @@ const StudentDashboard = () => {
         ? JSON.parse(localStorage.getItem('pref_camera')) 
         : undefined;
 
-      const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+      // Remove qrbox so Html5Qrcode doesn't render its own ugly shaded overlay,
+      // letting our custom Apple-like glassmorphic overlay handle the UI entirely.
+      const config = { fps: 10 };
       
       const startScanner = async () => {
         try {
@@ -282,8 +284,9 @@ const StudentDashboard = () => {
       }
     }
 
-    // If strict mode is on, or location was invalid, we require the backup password.
-    if (selectedSession.isStrict || !locationValid) {
+    // If strict mode is ON, they must do BOTH (Scan QR + Enter Password)
+    // If strict mode is OFF, scanning the QR is enough to prove attendance (since it rotates every 20s).
+    if (selectedSession.isStrict) {
       showToast('QR Validated! Please enter the backup password to complete attendance.', 'success');
       if (scannerRef.current && scannerRef.current.isScanning) {
         try { scannerRef.current.pause(true); } catch (e) { /* ignore */ }
