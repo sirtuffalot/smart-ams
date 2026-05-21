@@ -80,6 +80,8 @@ const Settings = () => {
   const [locStatus, setLocStatus]  = useState('unknown');
   const [requestingCam, setRequestingCam] = useState(false);
   const [requestingLoc, setRequestingLoc] = useState(false);
+  const [availableCameras, setAvailableCameras] = useState([]);
+  const [selectedCamera, setSelectedCamera] = useState(() => getFromStorage('pref_camera', ''));
 
   // ── App Preferences ──────────────────────────────────────────────────────
   const [theme,      setTheme]      = useState(() => getFromStorage('pref_theme', 'system'));
@@ -99,7 +101,10 @@ const Settings = () => {
       try {
         const cam = await navigator.permissions.query({ name: 'camera' });
         setCamStatus(cam.state);
-        cam.onchange = () => setCamStatus(cam.state);
+        cam.onchange = () => {
+          setCamStatus(cam.state);
+          if (cam.state === 'granted') loadCameras();
+        };
       } catch { setCamStatus('unknown'); }
       try {
         const loc = await navigator.permissions.query({ name: 'geolocation' });
@@ -109,7 +114,29 @@ const Settings = () => {
     }
   }, []);
 
-  useEffect(() => { refreshPermissions(); }, [refreshPermissions]);
+  const loadCameras = async () => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(d => d.kind === 'videoinput');
+      setAvailableCameras(videoDevices);
+      if (videoDevices.length > 0 && !selectedCamera) {
+        setSelectedCamera(videoDevices[0].deviceId);
+      }
+    } catch (e) {
+      console.warn('Could not load cameras', e);
+    }
+  };
+
+  useEffect(() => { 
+    refreshPermissions();
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        stream.getTracks().forEach(t => t.stop());
+        loadCameras();
+      }).catch(() => {});
+  }, [refreshPermissions]);
+
+  useEffect(() => { saveToStorage('pref_camera', selectedCamera); }, [selectedCamera]);
 
   // Save preferences when they change
   useEffect(() => { saveToStorage('pref_haptics', haptics); }, [haptics]);
@@ -255,6 +282,31 @@ const Settings = () => {
             )}
           </div>
         </div>
+
+        {/* Camera Selector */}
+        {camStatus === 'granted' && availableCameras.length > 0 && (
+          <div style={rowStyle}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-main)' }}>Default Camera</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Choose which camera to use for scanning</div>
+            </div>
+            <select
+              value={selectedCamera}
+              onChange={(e) => setSelectedCamera(e.target.value)}
+              style={{
+                padding: '8px 12px', borderRadius: 9, fontSize: 13, fontWeight: 600,
+                background: 'var(--bg-page)', border: '1px solid var(--border-color)',
+                color: 'var(--text-main)', outline: 'none', maxWidth: 180, cursor: 'pointer'
+              }}
+            >
+              {availableCameras.map(cam => (
+                <option key={cam.deviceId} value={cam.deviceId}>
+                  {cam.label || `Camera ${cam.deviceId.substring(0,5)}`}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Location Row */}
         <div style={lastRowStyle}>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { QrCode, MapPin, CheckCircle, XCircle, AlertCircle, ArrowLeft, Clock, X, UserCircle, User, BookOpen, CalendarCheck, TrendingUp, GraduationCap, Percent, Award, Flame } from 'lucide-react';
 import { checkLocation } from '../utils/geolocation';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { getActiveSessions, markAttendance, getSession, getStudentAttendedSessionIds, getStudentAttendanceStats, isSessionExpired, isSessionUpcoming } from '../utils/db';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -138,7 +138,7 @@ const StudentDashboard = () => {
 
     const verifyLocation = async () => {
       try {
-        const result = await checkLocation(selectedSession.location.lat, selectedSession.location.lng, 500);
+        const result = await checkLocation(selectedSession.location.lat, selectedSession.location.lng, 50000);
         if (result.isWithinRange) {
           setGpsStatus({ state: 'success', message: 'Location Verified' });
           setLocationValid(true);
@@ -157,14 +157,50 @@ const StudentDashboard = () => {
 
     // Init Scanner
     if (!scannerRef.current) {
-      scannerRef.current = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
-      scannerRef.current.render(onScanSuccess, onScanFailure);
+      scannerRef.current = new Html5Qrcode(
+        "reader",
+        { formatsToSupport: [ 0 ] } // 0 = QR_CODE
+      );
+
+      const prefCamera = localStorage.getItem('pref_camera') 
+        ? JSON.parse(localStorage.getItem('pref_camera')) 
+        : undefined;
+
+      const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+      
+      const startScanner = async () => {
+        try {
+          if (prefCamera) {
+            await scannerRef.current.start({ deviceId: { exact: prefCamera } }, config, onScanSuccess, onScanFailure);
+          } else {
+            await scannerRef.current.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure);
+          }
+        } catch (err) {
+          console.warn("Camera start failed, falling back", err);
+          try {
+            await scannerRef.current.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure);
+          } catch (e) {
+            console.error(e);
+            showToast('Failed to start camera. Please check permissions.', 'error');
+            setShowFailsafe(true);
+          }
+        }
+      };
+      
+      startScanner();
     }
 
     return () => {
       if (scannerRef.current) {
-        scannerRef.current.clear().catch(console.error);
-        scannerRef.current = null;
+        if (scannerRef.current.isScanning) {
+          scannerRef.current.stop().then(() => {
+            scannerRef.current.clear();
+            scannerRef.current = null;
+          }).catch(console.error);
+        } else {
+          scannerRef.current.clear();
+          scannerRef.current = null;
+        }
       }
     };
   }, [selectedSession]);
@@ -254,8 +290,8 @@ const StudentDashboard = () => {
       // Do not resume scanning automatically if we show failsafe. They need to enter pwd.
       showToast('Please enter the backup password to continue.', 'info');
       setShowFailsafe(true);
-      if (scannerRef.current) {
-        try { scannerRef.current.pause(true); } catch (e) { /* ignore */ }
+      if (scannerRef.current && scannerRef.current.isScanning) {
+        try { scannerRef.current.pause(); } catch (e) { /* ignore */ }
       }
     } else {
       markAttendanceComplete();
@@ -893,9 +929,75 @@ const StudentDashboard = () => {
       </div>
 
       <div className="flex gap-4" style={{ marginTop: '32px', flexWrap: 'wrap' }}>
-        <div style={{ flex: '1 1 300px', background: 'white', padding: '24px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+        <div style={{ flex: '1 1 300px', background: 'white', padding: '24px', borderRadius: '16px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }}>
           <h3 style={{ marginBottom: '16px', fontSize: '16px' }}>Scan QR Code</h3>
-          <div id="reader" style={{ width: '100%', minHeight: '300px', borderRadius: '8px', overflow: 'hidden' }}></div>
+          
+          <div style={{
+            position: 'relative', width: '100%', maxWidth: '400px', margin: '0 auto',
+            borderRadius: '24px', overflow: 'hidden', backgroundColor: '#000',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.15)', border: '4px solid #111827',
+            aspectRatio: '3/4'
+          }}>
+            {/* The actual video feed */}
+            <div id="reader" style={{ width: '100%', height: '100%' }}></div>
+            
+            {/* Premium Glassmorphic Overlay */}
+            <div style={{
+              position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+              pointerEvents: 'none',
+              boxShadow: 'inset 0 0 0 2000px rgba(0,0,0,0.4)', // Darkens everything
+            }}>
+              {/* Center cutout (the clear part) */}
+              <div style={{
+                position: 'absolute',
+                top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                width: '250px', height: '250px',
+                borderRadius: '24px',
+                boxShadow: '0 0 0 2000px rgba(0,0,0,0.4) inset, 0 0 0 2px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.4)',
+                background: 'transparent',
+                display: 'flex', justifyContent: 'center', alignItems: 'center'
+              }}>
+                {/* Animated corner brackets */}
+                <div style={{ position: 'absolute', width: 30, height: 30, top: -2, left: -2, borderTop: '4px solid #14b8a6', borderLeft: '4px solid #14b8a6', borderTopLeftRadius: 24 }} />
+                <div style={{ position: 'absolute', width: 30, height: 30, top: -2, right: -2, borderTop: '4px solid #14b8a6', borderRight: '4px solid #14b8a6', borderTopRightRadius: 24 }} />
+                <div style={{ position: 'absolute', width: 30, height: 30, bottom: -2, left: -2, borderBottom: '4px solid #14b8a6', borderLeft: '4px solid #14b8a6', borderBottomLeftRadius: 24 }} />
+                <div style={{ position: 'absolute', width: 30, height: 30, bottom: -2, right: -2, borderBottom: '4px solid #14b8a6', borderRight: '4px solid #14b8a6', borderBottomRightRadius: 24 }} />
+                
+                {/* Animated scanning line */}
+                <div style={{
+                  width: '100%', height: 2, background: 'linear-gradient(90deg, transparent, #14b8a6, transparent)',
+                  position: 'absolute', top: 0, animation: 'scanLine 2s linear infinite',
+                  boxShadow: '0 0 10px #14b8a6'
+                }} />
+              </div>
+              
+              {/* Instructions text */}
+              <div style={{
+                position: 'absolute', bottom: '30px', left: 0, right: 0, textAlign: 'center',
+                color: 'white', fontWeight: 600, fontSize: '14px', textShadow: '0 2px 4px rgba(0,0,0,0.5)'
+              }}>
+                {isProcessingScan.current ? 'Processing...' : 'Align QR Code within the frame'}
+              </div>
+            </div>
+          </div>
+          
+          <style>{`
+            @keyframes scanLine {
+              0% { top: 10%; opacity: 0; }
+              10% { opacity: 1; }
+              90% { opacity: 1; }
+              100% { top: 90%; opacity: 0; }
+            }
+            /* Hide the ugly default HTML5QRcode elements */
+            #reader video {
+              object-fit: cover !important;
+              width: 100% !important;
+              height: 100% !important;
+            }
+            #reader img { display: none !important; }
+            #reader canvas { display: none !important; }
+            #qr-canvas-visible { display: none !important; }
+          `}</style>
         </div>
 
         <div style={{ flex: '1 1 300px', background: 'white', padding: '32px', borderRadius: '16px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
