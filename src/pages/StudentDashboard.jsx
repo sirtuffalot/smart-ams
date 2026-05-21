@@ -17,6 +17,7 @@ const StudentDashboard = () => {
   const [statsLoading, setStatsLoading] = useState(true);
   const [selectedSession, setSelectedSession] = useState(null);
   const [attendanceConfirmed, setAttendanceConfirmed] = useState(null);
+  const [qrValidated, setQrValidated] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [bannerLeaving, setBannerLeaving] = useState(false);
   
@@ -879,6 +880,7 @@ const StudentDashboard = () => {
         <span>Back to Classes</span>
       </div>
 
+      <div style={{
         background: '#f8fafc',
         padding: '20px', 
         borderRadius: '24px', 
