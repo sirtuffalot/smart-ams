@@ -138,7 +138,7 @@ const StudentDashboard = () => {
 
     const verifyLocation = async () => {
       try {
-        const result = await checkLocation(selectedSession.location.lat, selectedSession.location.lng, 30);
+        const result = await checkLocation(selectedSession.location.lat, selectedSession.location.lng, 500);
         if (result.isWithinRange) {
           setGpsStatus({ state: 'success', message: 'Location Verified' });
           setLocationValid(true);

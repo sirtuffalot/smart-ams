@@ -23,6 +23,7 @@ export const getLecturerCourses = async (lecturerId) => {
 
 // Sessions
 export const createSession = async (lecturerId, lecturerName, courseId, courseCode, courseName, venue, lat, lng, pwd, isStrict, startTime, endTime) => {
+  const qrSecret = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
   // 1. Create the session
   const sessionRef = await addDoc(collection(db, 'sessions'), {
     lecturerId,
@@ -38,7 +39,7 @@ export const createSession = async (lecturerId, lecturerName, courseId, courseCo
     endTime: endTime || '',
     attendanceLocked: false,
     status: 'active',
-    qrSecret: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+    qrSecret,
     createdAt: serverTimestamp()
   });
 
