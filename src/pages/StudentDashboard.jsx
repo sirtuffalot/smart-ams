@@ -255,8 +255,6 @@ const StudentDashboard = () => {
       const now = Date.now();
       const age = now - data.ts;
       
-      // Reject if older than 90 seconds (covers the 20s rotation cycle with generous buffer
-      // for clock drift between LTE and WiFi devices) or more than 30s in the future.
       if (age > 90000 || age < -30000) {
         showToast('QR Code Expired. Please scan the live code on the screen.', 'error');
         resumeScanning();
@@ -279,20 +277,17 @@ const StudentDashboard = () => {
           return;
         }
       } catch (err) {
-        console.error('Crypto verification failed', err);
-        showToast('Failed to verify secure QR code.', 'error');
-        resumeScanning();
-        return;
+        console.error('Crypto error:', err);
       }
     }
 
+    // If strict mode is on, or location was invalid, we require the backup password.
     if (selectedSession.isStrict || !locationValid) {
-      // Do not resume scanning automatically if we show failsafe. They need to enter pwd.
-      showToast('Please enter the backup password to continue.', 'info');
-      setShowFailsafe(true);
+      showToast('QR Validated! Please enter the backup password to complete attendance.', 'success');
       if (scannerRef.current && scannerRef.current.isScanning) {
-        try { scannerRef.current.pause(); } catch (e) { /* ignore */ }
+        try { scannerRef.current.pause(true); } catch (e) { /* ignore */ }
       }
+      setQrValidated(true); 
     } else {
       markAttendanceComplete();
     }
@@ -301,7 +296,20 @@ const StudentDashboard = () => {
   const onScanFailure = (error) => { /* ignore */ };
 
   const handlePasswordSubmit = () => {
+    if (!password) {
+      showToast('Please enter the backup password.', 'warning');
+      return;
+    }
+    
     if (password === selectedSession.pwd) {
+      // If strict mode is ON, they MUST scan the QR code first
+      if (selectedSession.isStrict && !qrValidated) {
+        showToast('Strict Mode is active: You must scan the QR code FIRST before entering the password.', 'error');
+        return;
+      }
+      
+      // If strict mode is OFF, entering the password is fundamentally enough
+      // OR if they already scanned the QR code (qrValidated is true), they can proceed
       markAttendanceComplete();
     } else {
       showToast('Incorrect backup password. Try again.', 'error');
@@ -871,16 +879,15 @@ const StudentDashboard = () => {
         <span>Back to Classes</span>
       </div>
 
-      <div style={{ 
-        background: 'white', 
-        padding: '24px', 
-        borderRadius: '16px', 
-        border: '1px solid var(--border-color)', 
+        background: '#f8fafc',
+        padding: '20px', 
+        borderRadius: '24px', 
+        border: '1px solid rgba(0,0,0,0.04)', 
         marginBottom: '24px',
         display: 'flex', 
-        gap: '20px', 
+        gap: '16px', 
         alignItems: 'center',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.03)'
+        boxShadow: '0 8px 30px rgba(0,0,0,0.02)'
       }}>
         <div style={{ 
           width: 64, 
@@ -928,91 +935,158 @@ const StudentDashboard = () => {
         </div>
       </div>
 
-      <div className="flex gap-4" style={{ marginTop: '32px', flexWrap: 'wrap' }}>
-        <div style={{ flex: '1 1 300px', background: 'white', padding: '24px', borderRadius: '16px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }}>
-          <h3 style={{ marginBottom: '16px', fontSize: '16px' }}>Scan QR Code</h3>
+      <div style={{ marginTop: '24px', display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+        {/* Scanner Card */}
+        <div style={{ 
+          flex: '1 1 340px', 
+          background: 'white', 
+          padding: '24px', 
+          borderRadius: '32px', 
+          boxShadow: '0 20px 40px rgba(0,0,0,0.06)',
+          border: '1px solid rgba(0,0,0,0.03)',
+          display: 'flex', 
+          flexDirection: 'column',
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <h3 style={{ fontSize: '20px', fontWeight: 800, color: '#111827', letterSpacing: '-0.5px' }}>Scan QR Code</h3>
+            {isProcessingScan.current && <span style={{ fontSize: '13px', fontWeight: 600, color: '#14b8a6', background: '#f0fdfa', padding: '4px 10px', borderRadius: '12px' }}>Processing...</span>}
+          </div>
           
           <div style={{
-            position: 'relative', width: '100%', maxWidth: '400px', margin: '0 auto',
-            borderRadius: '24px', overflow: 'hidden', backgroundColor: '#000',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.15)', border: '4px solid #111827',
-            aspectRatio: '3/4'
+            position: 'relative', width: '100%', maxWidth: '100%', margin: '0 auto',
+            borderRadius: '28px', overflow: 'hidden', backgroundColor: '#f3f4f6',
+            boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.05)',
+            aspectRatio: '1 / 1'
           }}>
             {/* The actual video feed */}
             <div id="reader" style={{ width: '100%', height: '100%' }}></div>
             
-            {/* Premium Glassmorphic Overlay */}
+            {/* Apple-like Glassmorphic Overlay */}
             <div style={{
               position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
               pointerEvents: 'none',
-              boxShadow: 'inset 0 0 0 2000px rgba(0,0,0,0.4)', // Darkens everything
+              display: 'flex', justifyContent: 'center', alignItems: 'center',
+              background: 'rgba(0,0,0,0.2)', // Very light dim
+              backdropFilter: 'blur(2px)', // Subtle blur outside the cutout
+              WebkitBackdropFilter: 'blur(2px)',
             }}>
               {/* Center cutout (the clear part) */}
               <div style={{
-                position: 'absolute',
-                top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                width: '250px', height: '250px',
-                borderRadius: '24px',
-                boxShadow: '0 0 0 2000px rgba(0,0,0,0.4) inset, 0 0 0 2px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.4)',
+                position: 'relative',
+                width: '70%', height: '70%',
+                borderRadius: '32px',
+                boxShadow: '0 0 0 4000px rgba(0,0,0,0.15)', // Creates the dim outside the cutout
                 background: 'transparent',
-                display: 'flex', justifyContent: 'center', alignItems: 'center'
+                backdropFilter: 'none',
+                WebkitBackdropFilter: 'none',
               }}>
-                {/* Animated corner brackets */}
-                <div style={{ position: 'absolute', width: 30, height: 30, top: -2, left: -2, borderTop: '4px solid #14b8a6', borderLeft: '4px solid #14b8a6', borderTopLeftRadius: 24 }} />
-                <div style={{ position: 'absolute', width: 30, height: 30, top: -2, right: -2, borderTop: '4px solid #14b8a6', borderRight: '4px solid #14b8a6', borderTopRightRadius: 24 }} />
-                <div style={{ position: 'absolute', width: 30, height: 30, bottom: -2, left: -2, borderBottom: '4px solid #14b8a6', borderLeft: '4px solid #14b8a6', borderBottomLeftRadius: 24 }} />
-                <div style={{ position: 'absolute', width: 30, height: 30, bottom: -2, right: -2, borderBottom: '4px solid #14b8a6', borderRight: '4px solid #14b8a6', borderBottomRightRadius: 24 }} />
-                
-                {/* Animated scanning line */}
-                <div style={{
-                  width: '100%', height: 2, background: 'linear-gradient(90deg, transparent, #14b8a6, transparent)',
-                  position: 'absolute', top: 0, animation: 'scanLine 2s linear infinite',
-                  boxShadow: '0 0 10px #14b8a6'
-                }} />
-              </div>
-              
-              {/* Instructions text */}
-              <div style={{
-                position: 'absolute', bottom: '30px', left: 0, right: 0, textAlign: 'center',
-                color: 'white', fontWeight: 600, fontSize: '14px', textShadow: '0 2px 4px rgba(0,0,0,0.5)'
-              }}>
-                {isProcessingScan.current ? 'Processing...' : 'Align QR Code within the frame'}
+                {/* Sleek white corner brackets */}
+                <div style={{ position: 'absolute', width: 40, height: 40, top: -2, left: -2, borderTop: '5px solid #ffffff', borderLeft: '5px solid #ffffff', borderTopLeftRadius: 32, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }} />
+                <div style={{ position: 'absolute', width: 40, height: 40, top: -2, right: -2, borderTop: '5px solid #ffffff', borderRight: '5px solid #ffffff', borderTopRightRadius: 32, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }} />
+                <div style={{ position: 'absolute', width: 40, height: 40, bottom: -2, left: -2, borderBottom: '5px solid #ffffff', borderLeft: '5px solid #ffffff', borderBottomLeftRadius: 32, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }} />
+                <div style={{ position: 'absolute', width: 40, height: 40, bottom: -2, right: -2, borderBottom: '5px solid #ffffff', borderRight: '5px solid #ffffff', borderBottomRightRadius: 32, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }} />
               </div>
             </div>
+
+            {/* Success Overlay (hides the paused screen) */}
+            {attendanceConfirmed && (
+              <div style={{
+                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                background: 'rgba(255,255,255,0.85)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
+                zIndex: 10
+              }}>
+                <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#10b981', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 16, boxShadow: '0 8px 24px rgba(16, 185, 129, 0.3)', animation: 'scaleIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>
+                  <CheckCircle size={32} color="white" />
+                </div>
+                <h4 style={{ fontSize: '20px', fontWeight: 800, color: '#065f46', margin: 0 }}>QR Validated!</h4>
+                <p style={{ fontSize: '14px', color: '#047857', marginTop: 6, fontWeight: 500 }}>Please complete the failsafe below.</p>
+              </div>
+            )}
           </div>
           
+          <div style={{ textAlign: 'center', marginTop: '20px', color: '#6b7280', fontSize: '14px', fontWeight: 500 }}>
+            Center the QR code in the frame to scan.
+          </div>
+
           <style>{`
-            @keyframes scanLine {
-              0% { top: 10%; opacity: 0; }
-              10% { opacity: 1; }
-              90% { opacity: 1; }
-              100% { top: 90%; opacity: 0; }
-            }
-            /* Hide the ugly default HTML5QRcode elements */
+            @keyframes scaleIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+            
+            /* Completely obliterate the ugly HTML5QRcode UI elements */
+            #reader { border: none !important; }
             #reader video {
               object-fit: cover !important;
               width: 100% !important;
               height: 100% !important;
+              border-radius: 28px !important;
             }
             #reader img { display: none !important; }
             #reader canvas { display: none !important; }
             #qr-canvas-visible { display: none !important; }
+            
+            /* Hide the ugly "Scanner paused" text injected by the library */
+            #reader > div:first-child { 
+              display: none !important; 
+            }
           `}</style>
         </div>
 
-        <div style={{ flex: '1 1 300px', background: 'white', padding: '32px', borderRadius: '16px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <div style={{ width: 56, height: 56, borderRadius: '14px', background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
-            <AlertCircle size={28} color="#d97706" />
+        {/* Failsafe / Password Entry Card */}
+        <div style={{ 
+          flex: '1 1 340px', 
+          background: 'white', 
+          padding: '32px', 
+          borderRadius: '32px', 
+          boxShadow: '0 20px 40px rgba(0,0,0,0.06)', 
+          border: '1px solid rgba(0,0,0,0.03)', 
+          display: 'flex', 
+          flexDirection: 'column', 
+          justifyContent: 'center',
+          animation: 'fadeIn 0.4s ease'
+        }}>
+          <div style={{ width: 56, height: 56, borderRadius: '18px', background: selectedSession.isStrict ? '#fee2e2' : '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
+            {selectedSession.isStrict ? <AlertCircle size={28} color="#dc2626" /> : <CheckCircle size={28} color="#16a34a" />}
           </div>
-          <h3 style={{ marginBottom: '8px', fontSize: '18px' }}>Password Failsafe</h3>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '14px', lineHeight: 1.6 }}>
-            Camera/GPS access is unavailable or strict mode is enabled. Enter the backup password your lecturer provided to mark your attendance.
+          <h3 style={{ marginBottom: '12px', fontSize: '22px', fontWeight: 800, letterSpacing: '-0.5px' }}>
+            {selectedSession.isStrict ? 'Strict Mode Active' : 'Password Backup'}
+          </h3>
+          <p style={{ color: '#4b5563', marginBottom: '28px', fontSize: '15px', lineHeight: 1.6 }}>
+            {selectedSession.isStrict 
+              ? "This session requires both. Please scan the QR code first, then enter the backup password provided by your lecturer." 
+              : "Can't scan the QR code? You can simply enter the backup password provided by your lecturer to mark your attendance instead."}
           </p>
-          <div className="form-group">
-            <label>Backup Password</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Enter password" onKeyDown={e => e.key === 'Enter' && handlePasswordSubmit()} />
+          <div className="form-group" style={{ marginBottom: '24px' }}>
+            <label style={{ fontSize: '14px', fontWeight: 600, color: '#374151', marginBottom: '8px', display: 'block' }}>Backup Password</label>
+            <input 
+              type="password" 
+              value={password} 
+              onChange={e => setPassword(e.target.value)} 
+              placeholder="Enter the 4-digit code" 
+              onKeyDown={e => e.key === 'Enter' && handlePasswordSubmit()} 
+              style={{ 
+                width: '100%', padding: '14px 16px', borderRadius: '14px', 
+                border: '2px solid #e5e7eb', fontSize: '16px', fontWeight: 500,
+                outline: 'none', transition: 'border-color 0.2s', backgroundColor: '#f9fafb'
+              }}
+              onFocus={e => e.target.style.borderColor = '#14b8a6'}
+              onBlur={e => e.target.style.borderColor = '#e5e7eb'}
+            />
           </div>
-          <button className="btn btn-primary" style={{ padding: '12px', fontSize: '15px' }} onClick={handlePasswordSubmit}>
+          <button 
+            style={{ 
+              width: '100%', padding: '16px', borderRadius: '14px', 
+              background: '#14b8a6', color: 'white', fontSize: '16px', fontWeight: 700, 
+              border: 'none', cursor: 'pointer', transition: 'transform 0.1s, background 0.2s',
+              boxShadow: '0 4px 12px rgba(20,184,166,0.3)'
+            }}
+            onMouseEnter={e => { e.target.style.background = '#0d9488'; e.target.style.transform = 'translateY(-2px)'; }}
+            onMouseLeave={e => { e.target.style.background = '#14b8a6'; e.target.style.transform = 'translateY(0)'; }}
+            onClick={handlePasswordSubmit}
+          >
             Submit Attendance
           </button>
         </div>
