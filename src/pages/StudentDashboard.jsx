@@ -318,15 +318,18 @@ const StudentDashboard = () => {
         return;
       }
       
-      // If strict mode is OFF, entering the password is fundamentally enough
       // OR if they already scanned the QR code (qrValidated is true), they can proceed
+      if (isProcessingScan.current) return;
+      isProcessingScan.current = true;
       markAttendanceComplete();
     } else {
       showToast('Incorrect backup password. Try again.', 'error');
+      isProcessingScan.current = false;
     }
   };
 
   const markAttendanceComplete = async () => {
+    if (!selectedSession) return;
     try {
       const liveSession = await getSession(selectedSession.id);
       if (!liveSession || liveSession.status !== 'active') {
@@ -1088,17 +1091,20 @@ const StudentDashboard = () => {
             />
           </div>
           <button 
+            disabled={isProcessingScan.current}
             style={{ 
               width: '100%', padding: '16px', borderRadius: '14px', 
-              background: '#14b8a6', color: 'white', fontSize: '16px', fontWeight: 700, 
-              border: 'none', cursor: 'pointer', transition: 'transform 0.1s, background 0.2s',
-              boxShadow: '0 4px 12px rgba(20,184,166,0.3)'
+              background: isProcessingScan.current ? '#9ca3af' : '#14b8a6', 
+              color: 'white', fontSize: '16px', fontWeight: 700, 
+              border: 'none', cursor: isProcessingScan.current ? 'not-allowed' : 'pointer', 
+              transition: 'transform 0.1s, background 0.2s',
+              boxShadow: isProcessingScan.current ? 'none' : '0 4px 12px rgba(20,184,166,0.3)'
             }}
-            onMouseEnter={e => { e.target.style.background = '#0d9488'; e.target.style.transform = 'translateY(-2px)'; }}
-            onMouseLeave={e => { e.target.style.background = '#14b8a6'; e.target.style.transform = 'translateY(0)'; }}
+            onMouseEnter={e => { if(!isProcessingScan.current) { e.target.style.background = '#0d9488'; e.target.style.transform = 'translateY(-2px)'; } }}
+            onMouseLeave={e => { if(!isProcessingScan.current) { e.target.style.background = '#14b8a6'; e.target.style.transform = 'translateY(0)'; } }}
             onClick={handlePasswordSubmit}
           >
-            Submit Attendance
+            {isProcessingScan.current ? 'Submitting...' : 'Submit Attendance'}
           </button>
         </div>
       </div>
