@@ -172,17 +172,17 @@ const StudentDashboard = () => {
 
       // Remove qrbox so Html5Qrcode doesn't render its own ugly shaded overlay,
       // letting our custom Apple-like glassmorphic overlay handle the UI entirely.
-      const config = { fps: 10 };
+      const config = { fps: 15 };
       
       const startScanner = async () => {
         try {
           const videoConstraints = prefCamera 
-            ? { deviceId: { exact: prefCamera }, advanced: [{ focusMode: "continuous" }] }
-            : { facingMode: "environment", advanced: [{ focusMode: "continuous" }] };
+            ? { deviceId: { exact: prefCamera } }
+            : { facingMode: "environment" };
             
           await scannerRef.current.start(videoConstraints, config, onScanSuccess, onScanFailure);
         } catch (err) {
-          console.warn("Camera start failed, falling back without advanced constraints", err);
+          console.warn("Camera start failed, falling back", err);
           try {
             await scannerRef.current.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure);
           } catch (e) {
