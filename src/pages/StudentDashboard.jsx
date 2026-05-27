@@ -176,13 +176,13 @@ const StudentDashboard = () => {
       
       const startScanner = async () => {
         try {
-          if (prefCamera) {
-            await scannerRef.current.start({ deviceId: { exact: prefCamera } }, config, onScanSuccess, onScanFailure);
-          } else {
-            await scannerRef.current.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure);
-          }
+          const videoConstraints = prefCamera 
+            ? { deviceId: { exact: prefCamera }, advanced: [{ focusMode: "continuous" }] }
+            : { facingMode: "environment", advanced: [{ focusMode: "continuous" }] };
+            
+          await scannerRef.current.start(videoConstraints, config, onScanSuccess, onScanFailure);
         } catch (err) {
-          console.warn("Camera start failed, falling back", err);
+          console.warn("Camera start failed, falling back without advanced constraints", err);
           try {
             await scannerRef.current.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure);
           } catch (e) {
@@ -363,7 +363,7 @@ const StudentDashboard = () => {
       setShowFailsafe(false);
 
       if (scannerRef.current) {
-        scannerRef.current.clear().catch(console.error);
+        try { scannerRef.current.clear(); } catch(e) { console.error(e); }
         scannerRef.current = null;
       }
 
