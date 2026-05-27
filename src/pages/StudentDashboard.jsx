@@ -32,6 +32,7 @@ const StudentDashboard = () => {
   
   const [gpsStatus, setGpsStatus] = useState({ state: 'pending', message: 'Waiting...' });
   const [locationValid, setLocationValid] = useState(false);
+  const locationValidRef = useRef(false);
   const [showFailsafe, setShowFailsafe] = useState(false);
   const [password, setPassword] = useState('');
   const [permStatus, setPermStatus] = useState({ cam: 'unknown', loc: 'unknown' });
@@ -143,6 +144,7 @@ const StudentDashboard = () => {
         if (result.isWithinRange) {
           setGpsStatus({ state: 'success', message: 'Location Verified' });
           setLocationValid(true);
+          locationValidRef.current = true;
           if (selectedSession.isStrict) setShowFailsafe(true);
         } else {
           throw new Error(`Too far (${Math.round(result.distance)}m away)`);
@@ -150,6 +152,7 @@ const StudentDashboard = () => {
       } catch (error) {
         setGpsStatus({ state: 'error', message: `Location Failed: ${error.message || error}` });
         setLocationValid(false);
+        locationValidRef.current = false;
         setShowFailsafe(true);
       }
     };
@@ -287,17 +290,18 @@ const StudentDashboard = () => {
     // If strict mode is ON, they must do BOTH (Scan QR + Enter Password)
     // If location is INVALID, they MUST use the backup password to prove their presence
     // If strict mode is OFF AND location is VALID, scanning the QR is enough to prove attendance
-    if (selectedSession.isStrict || !locationValid) {
+    if (selectedSession.isStrict || !locationValidRef.current) {
       showToast(
-        !locationValid 
+        !locationValidRef.current 
           ? 'Location unverified. Please enter the backup password to verify attendance.' 
           : 'QR Validated! Please enter the backup password to complete attendance.', 
-        !locationValid ? 'warning' : 'success'
+        !locationValidRef.current ? 'warning' : 'success'
       );
       if (scannerRef.current && scannerRef.current.isScanning) {
         try { scannerRef.current.pause(true); } catch (e) { /* ignore */ }
       }
       setQrValidated(true); 
+      isProcessingScan.current = false; // Allow them to click the password submit button!
     } else {
       markAttendanceComplete();
     }
@@ -1005,7 +1009,7 @@ const StudentDashboard = () => {
             </div>
 
             {/* Success Overlay (hides the paused screen) */}
-            {attendanceConfirmed && (
+            {qrValidated && (
               <div style={{
                 position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
                 background: 'rgba(255,255,255,0.85)',
