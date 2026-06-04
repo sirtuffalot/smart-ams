@@ -620,7 +620,7 @@ const SessionView = ({ session, onLeave, onSessionUpdate, onEnd }) => {
             <div style={{ textAlign: 'center' }}>
               <Monitor size={48} style={{ color: 'var(--primary-color)', marginBottom: 16 }} />
               <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Cast to Board</h2>
-              <p style={{ color: '#64748b', marginBottom: 24, fontSize: 14 }}>Open <strong>your-app.com/board</strong> on the Smart Board and enter the 4-digit pairing code shown.</p>
+              <p style={{ color: '#64748b', marginBottom: 24, fontSize: 14 }}>Open <strong>{window.location.host}/board</strong> on the Smart Board and enter the 4-digit pairing code shown.</p>
               
               {castSuccess ? (
                 <div style={{ padding: 24, background: '#dcfce7', color: '#166534', borderRadius: 16, fontWeight: 700, fontSize: 18 }}>
