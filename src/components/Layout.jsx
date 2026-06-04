@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Users, UserSquare2, UserCircle, HelpCircle, Settings, LogOut, Bell, Search, BarChart3, Menu, X, ChevronLeft, ChevronRight, BookOpen, QrCode } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { subscribeToNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '../utils/db';
+import { subscribeToNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteAllNotifications } from '../utils/db';
 
 const Layout = ({ children }) => {
   const { currentUser, userRole, userProfile, logout } = useAuth();
@@ -123,7 +123,7 @@ const Layout = ({ children }) => {
             <button
               className="sidebar-toggle-btn topbar-toggle"
               onClick={() => {
-                if (window.innerWidth <= 768) setSidebarOpen(true);
+                if (window.innerWidth <= 1024) setSidebarOpen(true);
                 else setCollapsed(!collapsed);
               }}
               title={collapsed ? 'Expand menu' : 'Collapse menu'}
@@ -182,14 +182,24 @@ const Layout = ({ children }) => {
                   {/* Dropdown Header */}
                   <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8faff' }}>
                     <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-main)' }}>Notifications</span>
-                    {notifications.filter(n => !n.read).length > 0 && (
-                      <button 
-                        onClick={() => markAllNotificationsAsRead(currentUser.uid)}
-                        style={{ background: 'none', border: 'none', color: 'var(--primary-color)', fontSize: 11, fontWeight: 700, cursor: 'pointer', padding: 0 }}
-                      >
-                        Mark all as read
-                      </button>
-                    )}
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                      {notifications.filter(n => !n.read).length > 0 && (
+                        <button 
+                          onClick={() => markAllNotificationsAsRead(currentUser.uid)}
+                          style={{ background: 'none', border: 'none', color: 'var(--primary-color)', fontSize: 11, fontWeight: 700, cursor: 'pointer', padding: 0 }}
+                        >
+                          Mark all as read
+                        </button>
+                      )}
+                      {notifications.length > 0 && (
+                        <button 
+                          onClick={() => deleteAllNotifications(currentUser.uid)}
+                          style={{ background: 'none', border: 'none', color: 'var(--error-color)', fontSize: 11, fontWeight: 700, cursor: 'pointer', padding: 0 }}
+                        >
+                          Clear all
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Dropdown Body */}

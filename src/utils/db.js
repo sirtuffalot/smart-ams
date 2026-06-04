@@ -1,5 +1,5 @@
 import { db } from '../firebase';
-import { collection, addDoc, getDocs, getDoc, query, where, updateDoc, doc, serverTimestamp, increment, orderBy, limit } from 'firebase/firestore';
+import { collection, addDoc, getDocs, getDoc, query, where, updateDoc, deleteDoc, doc, serverTimestamp, increment, orderBy, limit } from 'firebase/firestore';
 
 import { onSnapshot } from 'firebase/firestore';
 
@@ -579,6 +579,13 @@ export const markAllNotificationsAsRead = async (userId) => {
   const q = query(collection(db, 'notifications'), where('userId', '==', userId), where('read', '==', false));
   const snapshot = await getDocs(q);
   const promises = snapshot.docs.map(doc => updateDoc(doc.ref, { read: true }));
+  await Promise.all(promises);
+};
+
+export const deleteAllNotifications = async (userId) => {
+  const q = query(collection(db, 'notifications'), where('userId', '==', userId));
+  const snapshot = await getDocs(q);
+  const promises = snapshot.docs.map(doc => deleteDoc(doc.ref));
   await Promise.all(promises);
 };
 

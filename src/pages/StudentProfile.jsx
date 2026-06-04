@@ -385,7 +385,7 @@ const StudentProfile = () => {
         }
         .nudge-link { color: var(--primary-color); cursor: pointer; font-weight: 600; text-decoration: underline; }
 
-        @media (max-width: 768px) {
+        @media (max-width: 1024px) {
           .profile-hero { 
             flex-direction: column; 
             text-align: center; 

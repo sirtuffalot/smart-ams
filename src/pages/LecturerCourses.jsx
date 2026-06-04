@@ -542,7 +542,7 @@ const CourseDetail = ({ course, onBack }) => {
             {loading ? (
               <SkeletonMetricCards />
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: 24 }}>
+              <div className="dashboard-grid">
                 {/* Left Column: Stat Cards & Chart */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                   

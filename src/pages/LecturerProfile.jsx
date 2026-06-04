@@ -121,7 +121,7 @@ const LecturerProfile = () => {
 
       {/* Hero Banner */}
       <div className="profile-hero" style={{
-        display: 'flex', alignItems: 'center', gap: 32,
+        display: 'flex', alignItems: 'center', gap: 32, flexWrap: 'wrap',
         background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
         borderRadius: 20, padding: '36px 40px', marginBottom: 32,
         color: 'white', position: 'relative', overflow: 'hidden',
